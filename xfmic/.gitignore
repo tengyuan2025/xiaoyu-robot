@@ -22,3 +22,12 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# 音频文件
+*.wav
+*.mp3
+*.m4a
+
+# 测试文件
+test_*.py
+*.log
