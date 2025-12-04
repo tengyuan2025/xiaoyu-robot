@@ -248,9 +248,30 @@ class RK3328Controller:
                 data = self.ser.read(self.ser.in_waiting)
                 buffer.extend(data)
 
+                # 调试：显示原始数据
+                if len(data) > 0:
+                    hex_str = ' '.join([f'{b:02X}' for b in data[:20]])  # 只显示前20字节
+                    print(f"[串口] 收到 {len(data)} 字节: {hex_str}...")
+
                 # 查找完整的消息包
                 if len(buffer) >= 7:
-                    if buffer[0] == self.SYNC_HEAD and buffer[2] == self.MSG_TYPE_DEVICE:
+                    # 调试：显示buffer状态
+                    print(f"[Buffer] 长度:{len(buffer)}, 头:{buffer[0]:02X}, 类型:{buffer[2]:02X}")
+
+                    # 检查消息头是否正确
+                    if buffer[0] != self.SYNC_HEAD:
+                        # 尝试查找正确的同步头
+                        sync_pos = buffer.find(self.SYNC_HEAD)
+                        if sync_pos > 0:
+                            print(f"[警告] 丢弃 {sync_pos} 字节垃圾数据，重新同步")
+                            buffer = buffer[sync_pos:]
+                        else:
+                            print(f"[警告] 未找到同步头，清空buffer")
+                            buffer.clear()
+                        continue
+
+                    # 唤醒事件是0x04类型，也接受0x02类型的设备消息
+                    if buffer[2] in [self.MSG_TYPE_DEVICE, self.MSG_TYPE_MASTER]:
                         msg_len = struct.unpack('<H', buffer[3:5])[0]
                         total_len = 7 + msg_len + 1  # 头+数据+校验
 
@@ -260,17 +281,30 @@ class RK3328Controller:
                                 json_data = buffer[7:7+msg_len].decode('utf-8')
                                 msg = json.loads(json_data)
 
-                                # 发送确认
-                                msg_id = buffer[5:7]
-                                self.send_confirm(msg_id)
+                                # 发送确认（跳过0x03和0xFF避免ACK循环）
+                                if buffer[2] not in [self.MSG_TYPE_CONFIRM, 0xFF]:
+                                    msg_id = buffer[5:7]
+                                    self.send_confirm(msg_id)
 
-                                # 清空buffer
-                                buffer.clear()
+                                # 清空已处理的消息
+                                buffer = buffer[total_len:]
 
                                 return msg
                             except Exception as e:
                                 print(f"解析设备消息失败: {e}")
                                 buffer.clear()
+                    else:
+                        # 不是我们需要的消息类型，跳过这条消息
+                        if buffer[2] == self.MSG_TYPE_CONFIRM or buffer[2] == 0xFF:
+                            # 确认消息，跳过
+                            msg_len = struct.unpack('<H', buffer[3:5])[0]
+                            total_len = 7 + msg_len + 1
+                            if len(buffer) >= total_len:
+                                print(f"[跳过] 确认消息 (类型:{buffer[2]:02X})")
+                                buffer = buffer[total_len:]
+                        else:
+                            print(f"[跳过] 未知消息类型: {buffer[2]:02X}")
+                            buffer = buffer[1:]  # 跳过一个字节，继续搜索
 
             time.sleep(0.01)
 
