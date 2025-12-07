@@ -248,25 +248,25 @@ class RK3328Controller:
                 data = self.ser.read(self.ser.in_waiting)
                 buffer.extend(data)
 
-                # 调试：显示原始数据
-                if len(data) > 0:
-                    hex_str = ' '.join([f'{b:02X}' for b in data[:20]])  # 只显示前20字节
-                    print(f"[串口] 收到 {len(data)} 字节: {hex_str}...")
+                # 调试：显示原始数据（已禁用）
+                # if len(data) > 0:
+                #     hex_str = ' '.join([f'{b:02X}' for b in data[:20]])
+                #     print(f"[串口] 收到 {len(data)} 字节: {hex_str}...")
 
                 # 查找完整的消息包
                 if len(buffer) >= 7:
-                    # 调试：显示buffer状态
-                    print(f"[Buffer] 长度:{len(buffer)}, 头:{buffer[0]:02X}, 类型:{buffer[2]:02X}")
+                    # 调试：显示buffer状态（已禁用）
+                    # print(f"[Buffer] 长度:{len(buffer)}, 头:{buffer[0]:02X}, 类型:{buffer[2]:02X}")
 
                     # 检查消息头是否正确
                     if buffer[0] != self.SYNC_HEAD:
                         # 尝试查找正确的同步头
                         sync_pos = buffer.find(self.SYNC_HEAD)
                         if sync_pos > 0:
-                            print(f"[警告] 丢弃 {sync_pos} 字节垃圾数据，重新同步")
+                            # print(f"[警告] 丢弃 {sync_pos} 字节垃圾数据，重新同步")
                             buffer = buffer[sync_pos:]
                         else:
-                            print(f"[警告] 未找到同步头，清空buffer")
+                            # print(f"[警告] 未找到同步头，清空buffer")
                             buffer.clear()
                         continue
 
@@ -300,10 +300,10 @@ class RK3328Controller:
                             msg_len = struct.unpack('<H', buffer[3:5])[0]
                             total_len = 7 + msg_len + 1
                             if len(buffer) >= total_len:
-                                print(f"[跳过] 确认消息 (类型:{buffer[2]:02X})")
+                                # print(f"[跳过] 确认消息 (类型:{buffer[2]:02X})")
                                 buffer = buffer[total_len:]
                         else:
-                            print(f"[跳过] 未知消息类型: {buffer[2]:02X}")
+                            # print(f"[跳过] 未知消息类型: {buffer[2]:02X}")
                             buffer = buffer[1:]  # 跳过一个字节，继续搜索
 
             time.sleep(0.01)
